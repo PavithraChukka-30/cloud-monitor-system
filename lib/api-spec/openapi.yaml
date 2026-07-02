@@ -3,20 +3,35 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CloudOps Monitor API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: metrics
+    description: Infrastructure metrics
+  - name: nodes
+    description: Kubernetes node management
+  - name: pods
+    description: Kubernetes pod management
+  - name: alerts
+    description: Alert management
+  - name: scaling
+    description: Auto-scaling events
+  - name: deployments
+    description: Deployment history
+  - name: logs
+    description: Centralized logging
+  - name: overview
+    description: Dashboard overview data
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +39,329 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /overview/summary:
+    get:
+      operationId: getOverviewSummary
+      tags: [overview]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewSummary"
+
+  /overview/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [overview]
+      summary: Get recent activity feed
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityEvent"
+
+  /metrics/current:
+    get:
+      operationId: getCurrentMetrics
+      tags: [metrics]
+      summary: Get current cluster-wide metrics
+      responses:
+        "200":
+          description: Current metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClusterMetrics"
+
+  /metrics/history:
+    get:
+      operationId: getMetricsHistory
+      tags: [metrics]
+      summary: Get metrics time series (last N minutes)
+      parameters:
+        - name: minutes
+          in: query
+          schema:
+            type: integer
+            default: 60
+        - name: metric
+          in: query
+          schema:
+            type: string
+            enum: [cpu, memory, disk, network_in, network_out, request_rate, response_time]
+      responses:
+        "200":
+          description: Metrics history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MetricDataPoint"
+
+  /nodes:
+    get:
+      operationId: listNodes
+      tags: [nodes]
+      summary: List all cluster nodes
+      responses:
+        "200":
+          description: Node list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Node"
+
+  /nodes/{nodeId}:
+    get:
+      operationId: getNode
+      tags: [nodes]
+      summary: Get node details
+      parameters:
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Node details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Node"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /pods:
+    get:
+      operationId: listPods
+      tags: [pods]
+      summary: List all pods
+      parameters:
+        - name: namespace
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [Running, Pending, Failed, CrashLoopBackOff, Terminating, Succeeded]
+      responses:
+        "200":
+          description: Pod list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pod"
+
+  /pods/{podId}:
+    get:
+      operationId: getPod
+      tags: [pods]
+      summary: Get pod details
+      parameters:
+        - name: podId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pod details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pod"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /alerts:
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      summary: List all alerts
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [firing, resolved, pending]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, warning, info]
+      responses:
+        "200":
+          description: Alert list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+
+  /alerts/{alertId}/acknowledge:
+    post:
+      operationId: acknowledgeAlert
+      tags: [alerts]
+      summary: Acknowledge an alert
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Alert acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /alerts/{alertId}/resolve:
+    post:
+      operationId: resolveAlert
+      tags: [alerts]
+      summary: Resolve an alert
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Alert resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /scaling/events:
+    get:
+      operationId: listScalingEvents
+      tags: [scaling]
+      summary: List auto-scaling events
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Scaling events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScalingEvent"
+
+  /scaling/policies:
+    get:
+      operationId: listScalingPolicies
+      tags: [scaling]
+      summary: List HPA policies
+      responses:
+        "200":
+          description: Scaling policies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScalingPolicy"
+
+  /deployments:
+    get:
+      operationId: listDeployments
+      tags: [deployments]
+      summary: List deployment history
+      responses:
+        "200":
+          description: Deployments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Deployment"
+
+  /logs:
+    get:
+      operationId: getLogs
+      tags: [logs]
+      summary: Get pod logs
+      parameters:
+        - name: namespace
+          in: query
+          schema:
+            type: string
+        - name: pod
+          in: query
+          schema:
+            type: string
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [info, warn, error, debug]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LogEntry"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +372,406 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    OverviewSummary:
+      type: object
+      properties:
+        totalNodes:
+          type: integer
+        healthyNodes:
+          type: integer
+        totalPods:
+          type: integer
+        runningPods:
+          type: integer
+        failedPods:
+          type: integer
+        firingAlerts:
+          type: integer
+        criticalAlerts:
+          type: integer
+        avgCpuPercent:
+          type: number
+        avgMemoryPercent:
+          type: number
+        uptime:
+          type: string
+        clusterHealth:
+          type: string
+          enum: [healthy, degraded, critical]
+      required:
+        - totalNodes
+        - healthyNodes
+        - totalPods
+        - runningPods
+        - failedPods
+        - firingAlerts
+        - criticalAlerts
+        - avgCpuPercent
+        - avgMemoryPercent
+        - uptime
+        - clusterHealth
+
+    ActivityEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [alert_fired, alert_resolved, pod_crashed, pod_restarted, scaling_up, scaling_down, deployment, node_issue]
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [info, warning, critical]
+        timestamp:
+          type: string
+          format: date-time
+        resource:
+          type: string
+        namespace:
+          type: ["string", "null"]
+      required:
+        - id
+        - type
+        - message
+        - severity
+        - timestamp
+        - resource
+
+    ClusterMetrics:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        cpuPercent:
+          type: number
+        memoryPercent:
+          type: number
+        diskPercent:
+          type: number
+        networkInMbps:
+          type: number
+        networkOutMbps:
+          type: number
+        requestRate:
+          type: number
+        responseTimeMs:
+          type: number
+      required:
+        - timestamp
+        - cpuPercent
+        - memoryPercent
+        - diskPercent
+        - networkInMbps
+        - networkOutMbps
+        - requestRate
+        - responseTimeMs
+
+    MetricDataPoint:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          type: number
+        metric:
+          type: string
+      required:
+        - timestamp
+        - value
+        - metric
+
+    Node:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [Ready, NotReady, Unknown]
+        role:
+          type: string
+          enum: [master, worker]
+        instanceType:
+          type: string
+        region:
+          type: string
+        cpuPercent:
+          type: number
+        memoryPercent:
+          type: number
+        diskPercent:
+          type: number
+        podCount:
+          type: integer
+        maxPods:
+          type: integer
+        cpuCores:
+          type: integer
+        memoryGb:
+          type: number
+        uptime:
+          type: string
+        kubeletVersion:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - status
+        - role
+        - instanceType
+        - region
+        - cpuPercent
+        - memoryPercent
+        - diskPercent
+        - podCount
+        - maxPods
+        - cpuCores
+        - memoryGb
+        - uptime
+        - kubeletVersion
+        - createdAt
+
+    Pod:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        namespace:
+          type: string
+        status:
+          type: string
+          enum: [Running, Pending, Failed, CrashLoopBackOff, Terminating, Succeeded]
+        nodeName:
+          type: string
+        image:
+          type: string
+        cpuPercent:
+          type: number
+        memoryPercent:
+          type: number
+        restartCount:
+          type: integer
+        readyContainers:
+          type: integer
+        totalContainers:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - id
+        - name
+        - namespace
+        - status
+        - nodeName
+        - image
+        - cpuPercent
+        - memoryPercent
+        - restartCount
+        - readyContainers
+        - totalContainers
+        - createdAt
+        - labels
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        severity:
+          type: string
+          enum: [critical, warning, info]
+        status:
+          type: string
+          enum: [firing, resolved, pending]
+        message:
+          type: string
+        resource:
+          type: string
+        namespace:
+          type: ["string", "null"]
+        value:
+          type: ["number", "null"]
+        threshold:
+          type: ["number", "null"]
+        acknowledged:
+          type: boolean
+        firedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - severity
+        - status
+        - message
+        - resource
+        - acknowledged
+        - firedAt
+
+    ScalingEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        deployment:
+          type: string
+        namespace:
+          type: string
+        direction:
+          type: string
+          enum: [up, down]
+        previousReplicas:
+          type: integer
+        newReplicas:
+          type: integer
+        reason:
+          type: string
+        cpuTrigger:
+          type: ["number", "null"]
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - id
+        - deployment
+        - namespace
+        - direction
+        - previousReplicas
+        - newReplicas
+        - reason
+        - timestamp
+
+    ScalingPolicy:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        namespace:
+          type: string
+        deployment:
+          type: string
+        minReplicas:
+          type: integer
+        maxReplicas:
+          type: integer
+        currentReplicas:
+          type: integer
+        targetCpuPercent:
+          type: integer
+        targetMemoryPercent:
+          type: ["integer", "null"]
+        enabled:
+          type: boolean
+      required:
+        - id
+        - name
+        - namespace
+        - deployment
+        - minReplicas
+        - maxReplicas
+        - currentReplicas
+        - targetCpuPercent
+        - enabled
+
+    Deployment:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        namespace:
+          type: string
+        image:
+          type: string
+        version:
+          type: string
+        previousVersion:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [success, failed, rolling, pending]
+        replicas:
+          type: integer
+        readyReplicas:
+          type: integer
+        triggeredBy:
+          type: string
+        commitSha:
+          type: ["string", "null"]
+        deployedAt:
+          type: string
+          format: date-time
+        duration:
+          type: ["integer", "null"]
+      required:
+        - id
+        - name
+        - namespace
+        - image
+        - version
+        - status
+        - replicas
+        - readyReplicas
+        - triggeredBy
+        - deployedAt
+
+    LogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        level:
+          type: string
+          enum: [info, warn, error, debug]
+        message:
+          type: string
+        pod:
+          type: string
+        namespace:
+          type: string
+        container:
+          type: string
+        traceId:
+          type: ["string", "null"]
+      required:
+        - id
+        - timestamp
+        - level
+        - message
+        - pod
+        - namespace
+        - container

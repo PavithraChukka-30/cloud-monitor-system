@@ -1,10 +1,11 @@
-# [Project name]
+# CloudOps Monitor
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A cloud infrastructure monitoring and auto-scaling platform dashboard. Monitors Kubernetes clusters and AWS infrastructure in real-time — CPU, memory, disk, network, pod status, node health, alerts, scaling events, and deployment history.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/cloudops-monitor run dev` — run the frontend dashboard (port auto-assigned)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -14,6 +15,7 @@ _Replace the heading above with the project's name, and this line with one sente
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: React + Vite + Tailwind CSS + Recharts + Wouter
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
@@ -22,15 +24,23 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — OpenAPI source of truth
+- `lib/db/src/schema/cloudops.ts` — DB schema (alerts, scaling_events, scaling_policies, deployments)
+- `artifacts/api-server/src/routes/` — API route handlers
+- `artifacts/api-server/src/lib/simulation.ts` — in-memory simulation for nodes, pods, metrics, logs
+- `artifacts/cloudops-monitor/src/pages/` — frontend pages
+- `artifacts/cloudops-monitor/src/components/layout.tsx` — persistent sidebar layout
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **Simulation vs DB**: Mutable entities (alerts, scaling policies, scaling events, deployments) live in PostgreSQL. Ephemeral/real-time data (nodes, pods, metrics, logs) is generated in-memory by `simulation.ts` with realistic jitter for live-feel updates.
+- **15s polling** on dashboard overview summary and current metrics for a live-feeling console without WebSockets.
+- **Bounded query inputs**: `/metrics/history` caps `minutes` at 1–1440 to prevent CPU amplification. `/scaling/events` caps `limit` at 1–500.
+- **Strict ID validation**: Alert mutation endpoints (`/acknowledge`, `/resolve`) use a digit-only regex check before Zod to reject inputs like `"123abc"`.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Dashboard with 7 pages: cluster overview with live charts, node inventory, pod explorer, alert center (with acknowledge/resolve actions), auto-scaling events + HPA policies, deployment history, and a real-time log viewer with auto-scroll.
 
 ## User preferences
 
@@ -38,7 +48,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- After changing `lib/api-spec/openapi.yaml`, always run codegen then `pnpm run typecheck:libs` before checking artifact typechecks.
+- The simulation layer uses `Date.now()` and `Math.sin()` for jitter — values change on every request, as expected.
 
 ## Pointers
 
